@@ -588,5 +588,6 @@ FodyWeavers.xsd
 
 ### Extra added by me
 /testdocs/
+/PyPDF2_PySimpleGUI/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudio,windows
