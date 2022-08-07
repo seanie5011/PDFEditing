@@ -4,6 +4,7 @@ from PyPDF2 import PdfFileMerger
 from pathlib import Path  # pathlib is local to Python3
 
 def main():
+    # Extracting Text from a PDF
     # Paths
     pdf_path = Path.cwd() / "testdocs"  # the Path cwd object, which is where this .py file is located + the path to the folder
 
@@ -18,7 +19,7 @@ def main():
     print(pdf_reader.documentInfo.title)
 
     # Extracting Text from a Page
-    first_page = pdf_reader.getPage(0)  # get the first page
+    first_page = pdf_reader.pages[0]  # get the first page
     print(type(first_page))
 
     print(first_page.extractText())  # prints text from first page, if applicable
@@ -37,7 +38,8 @@ def main():
         for page in pdf_reader.pages:
             text = page.extractText()
             output_file.write(text)
-
+    
+    # Extracting Pages from a PDF
     # Using PDF Writer
     pdf_writer.addBlankPage(width=72, height=72)  # write a blank page object to the writer, each unit is 1/72 of an inch, so we have a 1in-1in pdf page now
     # write a new blank pdf, in binary write mode
@@ -45,10 +47,40 @@ def main():
         pdf_writer.write(output_file)  # pdf_writer writes a blank page as determined above
         # the above line may seem backwards, the output_file is actually the new file and pdf_writer.write() writes whatever pdf_writer holds onto it
 
-    # Extracting Pages from a PDF
+    # Extracting a single page from a PDF
+    # open pdf, extract first page, save to new pdf
+    input_pdf = PdfFileReader(str(pdf_path / "Test1.pdf"))
+    first_page = input_pdf.pages[0]
 
+    pdf_writer = PdfFileWriter()
+    pdf_writer.add_page(first_page)
+
+    with Path('testdocs\\Test1_first_page.pdf').open(mode='wb') as output_file:
+        pdf_writer.write(output_file)
+
+    # Extracting multiple pages from a PDF
+    # can do the same as above using a loop
+    # lets use a lecture instead, we want pages 2 and 3
+    input_pdf = PdfFileReader(str(pdf_path / "reports" / "PY3109Lecture2.pdf"))
+    pdf_writer = PdfFileWriter()
+    for page in input_pdf.pages[1:3]:  # pages 2 and 3 are indexes 1 and 2
+        pdf_writer.add_page(page)
+
+    with Path('testdocs\\Lecture2_page2n3.pdf').open(mode='wb') as output_file:
+        pdf_writer.write(output_file)
+
+    # Extracting every page from a pdf
+    # shortcut to take every page from a pdf and write to pdf_writer
+    # use same input_pdf
+    pdf_writer = PdfFileWriter()
+    pdf_writer.append_pages_from_reader(input_pdf)
+
+    with Path('testdocs\\Lecture2_all.pdf').open(mode='wb') as output_file:
+        pdf_writer.write(output_file)
 
     # Concatenating PDFs
+    # using .append()
+    # concatenates to the end of the pdf doc
     reports_dir = Path.cwd() / "testdocs" / "reports"  # get directory of the pdfs to be merged
     for path in reports_dir.glob("*.pdf"):  # glob finds pathnames that match the one specified
         print(path.name)
@@ -63,6 +95,21 @@ def main():
     # now write new pdf, with in-built write from pdf_merger
     with Path("testdocs\\merged_reports.pdf").open(mode="wb") as output_file:
         pdf_merger.write(output_file)  # writes the merged pdf to merged_reports.pdf, a new file
+
+    # using .merge()
+    # concatenates at insertion point specified
+    # put first page of test pdf into lecture 2 at 3rd page
+    merge_pdf = PdfFileReader(str(pdf_path / "Test1.pdf"))  # reader instance so we can get specific pages
+    main_pdf_path = str(pdf_path / "reports" / "PY3109Lecture2.pdf")
+
+    pdf_merger = PdfFileMerger()
+    pdf_merger.append(main_pdf_path)  # initialise with main pdf
+
+    pdf_merger.merge(2, merge_pdf, pages=(0, 1))  # insert first page (index 0, spans to 1 but not including 1) into doc at page 3 (index 2); page 3 is moved to after merge_pdf
+    pdf_merger.add_outline_item('Test Page!', 2)  # create bookmark for page 3 (index 2), seems to mess up order of bookmarks though
+
+    with Path("testdocs\\merged_test.pdf").open(mode="wb") as output_file:
+        pdf_merger.write(output_file)
 
     # Rotating and Cropping
 
