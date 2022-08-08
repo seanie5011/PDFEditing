@@ -3,6 +3,7 @@ from PyPDF2 import PdfFileWriter
 from PyPDF2 import PdfFileMerger
 from pathlib import Path  # pathlib is local to Python3
 
+
 def main():
     # Extracting Text from a PDF
     # Paths
@@ -28,17 +29,17 @@ def main():
 
     # Saving this text to a .txt file
     output_file_path = pdf_path / "Test1_converted.txt"  # add name of new .txt file
-    with output_file_path.open(mode = "w") as output_file:  # use pathlibs inbuilt open
+    with output_file_path.open(mode="w") as output_file:  # use pathlibs inbuilt open
         # Get attributes and write them
         title = pdf_reader.documentInfo.title
         num_pages = pdf_reader.getNumPages()
         output_file.write(f"{title}\\nNumber of pages: {num_pages}\\n\\n")
-        
+
         # write in .txt the text for each page
         for page in pdf_reader.pages:
             text = page.extractText()
             output_file.write(text)
-    
+
     # Extracting Pages from a PDF
     # Using PDF Writer
     pdf_writer.addBlankPage(width=72, height=72)  # write a blank page object to the writer, each unit is 1/72 of an inch, so we have a 1in-1in pdf page now
@@ -116,6 +117,21 @@ def main():
     # Encrypting and Decrypting
 
     # PDF File from scratch
+
+    # merging using a writer
+    main_pdf = PdfFileReader(str(pdf_path / "reports" / "PY3109Lecture2.pdf"))
+    merge_pdf = PdfFileReader(str(pdf_path / "Test1.pdf"))
+    writer = PdfFileWriter()
+    writer.append_pages_from_reader(main_pdf)
+    writer.add_outline_item('PY3109Lecture2', 0)
+    for index, page in enumerate(merge_pdf.pages):
+        writer.add_page(page)
+        if index == 0:
+            writer.add_outline_item('Test1', len(writer.pages))
+
+    with Path("testdocs\\merged_testyyuiuagf.pdf").open(mode="wb") as output_file:
+        writer.write(output_file)
+
 
 
 if __name__ == '__main__':
