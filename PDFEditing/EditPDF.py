@@ -32,7 +32,7 @@ class PDFEditing():
             bookmark_title = path.split('\\')[-1][:-4]
 
             self.pdf_reader_list.append(new_reader)
-            self.pdf_bookmarks_list.append(bookmark_title)
+            self.pdf_bookmarks_list.append([bookmark_title, 0, None, None])  # bookmark_list contains the text, the index of the bookmark, the parent (None is no parent), and the object reference
 
     def add_all_readers(self):
         ''' Takes all readers from pdf_readers_list and appends each page to pdf_writer, with bookmarks
@@ -44,20 +44,25 @@ class PDFEditing():
             for page_index, page in enumerate(reader.pages):
                 self.pdf_writer.add_page(page)
                 if page_index == 0:  # if first new page, add bookmark, note indexing requires -1
-                    self.pdf_writer.add_outline_item(self.pdf_bookmarks_list[reader_index], len(self.pdf_writer.pages) - 1)
+                    self.pdf_bookmarks_list[reader_index][1] = len(self.pdf_writer.pages) - 1  # update the index of the bookmark
+                    self.pdf_bookmarks_list[reader_index][3] = self.pdf_writer.add_outline_item(*self.pdf_bookmarks_list[reader_index][:-1])  # see _update_bookmarks
 
     def insert_pdf(self, path, page_number):
-        ''' can insert a new pdf at the specified page_number, adds a bookmark
+        ''' Can insert a new pdf at the specified page_number, adds a bookmark
         path must be of type string or pathlib.WindowsPath variable and page_number must be of type int
         '''
 
+        # add pdf to writer
         path = str(path)
+        new_reader_pages = PdfFileReader(path).pages
+        new_page_index = page_number - 1
+
+        for index, page in enumerate(new_reader_pages):  # make a temp reader for this pdf
+            self.pdf_writer.insert_page(page, new_page_index + index)
+
+        # add and fix bookmarks
         bookmark_title = path.split('\\')[-1][:-4]
-
-        for index, page in enumerate(PdfFileReader(path).pages):  # make a temp reader for this pdf
-            self.pdf_writer.insert_page(page, page_number - 1 + index)
-
-        self.pdf_writer.add_outline_item(bookmark_title, page_number - 1)  # CAN MESS UP OTHER BOOKMARKS
+        self._fix_bookmarks(len(new_reader_pages), new_page_index, bookmark_title=bookmark_title)
 
     def cut_page(self, page_number):
         ''' Removes the page at a specific page_number
@@ -71,22 +76,55 @@ class PDFEditing():
             if page_index != page_number - 1:  # add all pages bar one at page_number
                 self.pdf_writer.add_page(page)
 
+        self._fix_bookmarks(-1, page_number - 1)
+
+    def _fix_bookmarks(self, alter_amount, threshold_index, bookmark_title=None, parent=None):
+        ''' Move every bookmark after by alter_amount and insert new bookmark_title under parent at threshold_index if desired
+        alter_amount and threshold_index must be ints, bookmark_title must be a string and parent must be another bookmark if desired
+        '''
+
+        bookmark_added = False  # whether the new bookmark was added yet
+        for list_index, bookmark_list in enumerate(self.pdf_bookmarks_list):
+            altered_page_index = bookmark_list[1] + alter_amount  # each index gets moved by the new amount
+            if bookmark_list[1] >= threshold_index:
+                if not bookmark_added and bookmark_title is not None:
+                    self.pdf_bookmarks_list.insert(list_index, [bookmark_title, threshold_index, parent, None])  # add the bookmark in proper place in list
+                    bookmark_added = True
+                else:
+                    self.pdf_bookmarks_list[list_index][1] = altered_page_index  # all bookmarks after the new one need to be altered
+
+        # if bookmark we want to add is after all other bookmarks
+        if not bookmark_added and bookmark_title is not None:
+            self.pdf_bookmarks_list.append([bookmark_title, threshold_index, parent, None])
+            bookmark_added = True
+
+        self._update_bookmarks()
+
+    def _update_bookmarks(self):
+        ''' Helper function that can be used to update bookmarks
+        '''
+
+        self.remove_bookmarks()  # remove all currently added
+        for index, bookmark in enumerate(self.pdf_bookmarks_list):  # add them all back and new ones now in pdf_bookmarks_list
+            self.pdf_bookmarks_list[index][3] = self.pdf_writer.add_outline_item(*bookmark[:-1])  # unpack bookmark except last item (the reference which is assigned here)
+
     def remove_bookmarks(self):
         ''' Removes all bookmarks from pdf_writer
         '''
 
         pages = self.pdf_writer.pages
 
-        self.pdf_writer = PdfFileWriter()
+        self.pdf_writer = PdfFileWriter()  # reset it
         for page in pages:
-            self.pdf_writer.add_page(page)  # does not retain bookmarks
+            self.pdf_writer.add_page(page)  # does not retain bookmarks when we add back
 
-    def add_bookmark(self, text, page_number):
-        ''' Adds a bookmark of title text onto page_number
-        text must be of type string and page_number of type int
+    def add_bookmark(self, text, page_number, parent=None):
+        ''' Adds a bookmark of title text onto page_number under parent
+        text must be of type string, page_number of type int and parent of TreeObject from bookmark-reference
         '''
-
-        self.pdf_writer.add_outline_item(text, page_number - 1)
+        # PARENT FUNCTIONALITY NOT FULLY ADDED
+        # NEED TO FIND OUT HOW TO TELL FUNCTION WHICH PARENT WE WANT FROM LIST
+        self._fix_bookmarks(0, page_number - 1, text, parent)
 
     def write_to_file(self, output_folder_path):
         ''' Writes the pdf instance to the designated folder.
@@ -107,7 +145,17 @@ class PDFEditing():
 
 
 def main():
-    print("Hello World!")
+    pdf_path = Path.cwd() / 'testdocs' / 'reports'
+    path = [pdf_path / 'PY3109Lecture1.pdf', pdf_path / 'PY3109Lecture2.pdf']
+    output_path = Path.cwd() / 'testdocs'
+
+    pdf = PDFEditing()
+    pdf.add_readers_from_list(path)
+    pdf.add_all_readers()
+    pdf.insert_pdf(Path.cwd() / 'testdocs' / 'Test1.pdf', 1)
+    pdf.add_bookmark("hello", 2)
+    pdf.cut_page(1)
+    pdf.write_to_file(output_path)
 
 
 if __name__ == '__main__':
