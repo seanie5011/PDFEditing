@@ -34,7 +34,9 @@ class PDFEditing():
             self.pdf_reader_list.append(new_reader)
             self.pdf_bookmarks_list.append([bookmark_title, 0, None, None])  # bookmark_list contains the text, the index of the bookmark, the parent (None is no parent), and the object reference
 
-    def add_all_readers(self):
+        self._add_all_readers()
+
+    def _add_all_readers(self):
         ''' Takes all readers from pdf_readers_list and appends each page to pdf_writer, with bookmarks
         '''
 
@@ -130,18 +132,24 @@ class PDFEditing():
         ''' Writes the pdf instance to the designated folder.
         output_folder_path should be a string or pathlib.WindowsPath variable
         '''
-
-        output_path = Path(output_folder_path / 'new_pdf-000.pdf')
+        if type(output_folder_path) == str: output_folder_path = Path(output_folder_path)
+        output_path = output_folder_path / 'new_pdf-000.pdf'
 
         # find correct path to create
         counter = 1
         while output_path.exists():
-            output_path = Path(output_folder_path / f'new_pdf-{counter:03d}.pdf')  # while current desired directory already exists, try same title with increasing number
+            output_path = output_folder_path / f'new_pdf-{counter:03d}.pdf'  # while current desired directory already exists, try same title with increasing number
             counter += 1
+
+            # break loop and function if too many files
+            if counter == 99:
+                print("ERROR: Too Many Files")
+                return
 
         # write to file
         with output_path.open(mode="wb") as output_file:
             self.pdf_writer.write(output_file)
+            print('YES')
 
 
 def main():
