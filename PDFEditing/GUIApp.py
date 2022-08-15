@@ -34,11 +34,18 @@ def main():
         ]
 
     tab3_layout = [
-        [sg.Button('Button')]
+        [sg.Button('Select Initial PDF', key='-CUT_INITIAL_PDF_BTN-', expand_x=True)],
+        [sg.Text('Page Number to Cut:'), sg.Input(key='-CUT_PAGE_NO_IP-', size=(3, 1))],
+        [sg.VPush()],
+        [sg.Button('Cut', key='-CUT_BTN-', expand_x=True)]
         ]
 
     tab4_layout = [
-        [sg.Button('Button')]
+        [sg.Button('Select PDF', key='-ADD_PDF_BTN-', expand_x=True)],
+        [sg.Text('Bookmark Text'), sg.Input(key='-ADD_TEXT_IP-', size=(18, 1))],
+        [sg.Text('Page Number for Bookmark:'), sg.Input(key='-ADD_PAGE_NO_IP-', size=(3, 1))],
+        [sg.VPush()],
+        [sg.Button('Add Bookmark', key='-ADD_BTN-', expand_x=True), sg.Button('Finish', key='-ADD_FINISH_BTN-')]
         ]
 
     layout = [
@@ -99,6 +106,48 @@ def main():
             else:
                 pdf.insert_pdf(insert_pdf_path, page_number)
                 pdf.write_to_file(output_folder_path)
+
+        # Cut Page
+        # can mess up bookmarks
+        if event == '-CUT_INITIAL_PDF_BTN-':
+            # get initial pdf path
+            initial_pdf_path = Path(sg.popup_get_file('Select PDF', no_window=True, file_types=(("PDF Files", "*.pdf"),)))
+
+        if event == '-CUT_BTN-' and output_folder_path != None:
+            # insert pdf into initial pdf
+            pdf.reset()
+            pdf.add_readers_from_list([initial_pdf_path])
+
+            try:  # ensure page_number is of type int, if not dont do anything
+                page_number = int(values['-CUT_PAGE_NO_IP-'])
+            except:
+                print("ERROR: page_number not type int")
+            else:
+                pdf.cut_page(page_number)
+                pdf.write_to_file(output_folder_path)
+
+        # Add Bookmark
+        # right now only adds one and thats it
+        if event == '-ADD_PDF_BTN-':
+            # get initial pdf path
+            add_pdf_path = Path(sg.popup_get_file('Select PDF', no_window=True, file_types=(("PDF Files", "*.pdf"),)))
+
+        if event == '-ADD_BTN-':
+            # insert pdf into initial pdf
+            pdf.reset()
+            pdf.add_readers_from_list([add_pdf_path])
+
+            bookmark_text = values['-ADD_TEXT_IP-']
+
+            try:  # ensure page_number is of type int, if not dont do anything
+                page_number = int(values['-ADD_PAGE_NO_IP-'])
+            except:
+                print("ERROR: page_number not type int")
+            else:
+                pdf.add_bookmark(bookmark_text, page_number)
+
+        if event == '-ADD_FINISH_BTN-' and output_folder_path != None:
+            pdf.write_to_file(output_folder_path)
 
         # Outside tabs
         if event == '-OUTPUT_BTN-':
